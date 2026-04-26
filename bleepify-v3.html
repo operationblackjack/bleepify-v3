@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BLEEPIFY v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Martian+Mono:wght@300;400;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<style>
+:root {
+  --bg:#0d0d0d; --bg2:#141414; --panel:#1a1a1a; --panel2:#202020;
+  --border:#2a2a2a; --border-hi:#3a3a3a;
+  --text:#f0f0f0; --text2:#888; --text3:#555;
+  --accent:#00ff88; --accent-dim:rgba(0,255,136,0.1);
+  --red:#ff4444; --red-dim:rgba(255,68,68,0.1);
+  --amber:#ffaa00; --amber-dim:rgba(255,170,0,0.1);
+  --blue:#4499ff; --blue-dim:rgba(68,153,255,0.1);
+  --purple:#aa66ff; --purple-dim:rgba(170,102,255,0.1);
+  --pink:#ff88aa; --pink-dim:rgba(255,136,170,0.1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px 80px;}
+
+/* Header */
+header{padding:44px 0 32px;border-bottom:1px solid var(--border);margin-bottom:32px;position:relative;}
+.logo-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.logo{font-family:'Martian Mono',monospace;font-weight:700;font-size:clamp(32px,8vw,60px);letter-spacing:-1px;line-height:1;background:linear-gradient(135deg,#00ff88,#00ccff,#aa66ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.vtag{font-family:'Martian Mono',monospace;font-size:.6rem;color:var(--accent);border:1px solid var(--accent);padding:3px 8px;letter-spacing:2px;opacity:.7;align-self:flex-end;margin-bottom:5px;}
+.tagline{font-size:.78rem;color:var(--text3);margin-top:7px;letter-spacing:.3px;}
+header::after{content:'';position:absolute;bottom:-1px;left:0;width:80px;height:2px;background:linear-gradient(90deg,var(--accent),transparent);}
+
+/* Section label */
+.slabel{font-family:'Martian Mono',monospace;font-size:.58rem;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Panel */
+.panel{background:var(--panel);border:1px solid var(--border);padding:18px 20px;margin-bottom:14px;}
+.ptitle{font-family:'Martian Mono',monospace;font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;}
+
+/* Key */
+.key-row{display:flex;gap:7px;}
+.key-row input{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Martian Mono',monospace;font-size:.75rem;padding:9px 13px;outline:none;transition:border-color .2s;}
+.key-row input:focus{border-color:var(--accent);}
+.key-hint{font-size:.64rem;color:var(--text3);margin-top:7px;line-height:1.6;}
+.key-hint a{color:var(--accent);opacity:.8;text-decoration:none;}
+.icon-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text2);padding:0 12px;cursor:pointer;font-size:.85rem;flex-shrink:0;transition:color .2s;}
+.icon-btn:hover{color:var(--text);}
+
+/* Mode tabs */
+.mode-tabs{display:flex;border:1px solid var(--border);margin-bottom:14px;overflow:hidden;}
+.mode-tab{flex:1;padding:10px 14px;text-align:center;cursor:pointer;font-family:'Martian Mono',monospace;font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);background:var(--panel);border-right:1px solid var(--border);transition:all .2s;}
+.mode-tab:last-child{border-right:none;}
+.mode-tab:hover{color:var(--text2);background:var(--panel2);}
+.mode-tab.active{background:var(--accent-dim);color:var(--accent);}
+
+/* Upload */
+.uzone{border:2px dashed var(--border-hi);background:var(--panel);padding:38px 22px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:14px;}
+.uzone:hover,.uzone.drag{border-color:var(--accent);background:var(--accent-dim);}
+.uzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;}
+.u-icon{font-size:2.2rem;display:block;margin-bottom:9px;}
+.u-title{font-family:'Martian Mono',monospace;font-size:.88rem;letter-spacing:1px;margin-bottom:4px;}
+.u-sub{font-size:.66rem;color:var(--text3);}
+.u-fmts{margin-top:7px;font-size:.55rem;letter-spacing:1px;color:var(--border-hi);text-transform:uppercase;}
+
+/* File chip */
+.fchip{display:none;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);padding:9px 13px;margin-bottom:14px;}
+.fchip.visible{display:flex;}
+.fc-info{flex:1;min-width:0;}
+.fc-name{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--accent);}
+.fc-meta{font-size:.6rem;color:var(--text3);margin-top:2px;}
+.rm-btn{background:none;border:1px solid var(--border);color:var(--text3);font-family:'Martian Mono',monospace;font-size:.58rem;padding:4px 9px;cursor:pointer;flex-shrink:0;transition:all .2s;}
+.rm-btn:hover{border-color:var(--red);color:var(--red);}
+
+/* Batch list */
+.blist{display:none;background:var(--panel2);border:1px solid var(--border);max-height:190px;overflow-y:auto;margin-bottom:14px;}
+.blist.visible{display:block;}
+.bitem{display:flex;align-items:center;gap:9px;padding:7px 13px;border-bottom:1px solid var(--border);font-size:.7rem;}
+.bitem:last-child{border-bottom:none;}
+.bnum{font-family:'Martian Mono',monospace;font-size:.58rem;color:var(--text3);width:22px;flex-shrink:0;}
+.bname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bsize{font-size:.6rem;color:var(--text3);flex-shrink:0;}
+
+/* Waveform */
+.wwave{display:none;margin-bottom:14px;}
+.wwave.visible{display:block;}
+canvas{width:100%;height:50px;display:block;background:var(--panel);border:1px solid var(--border);}
+
+/* Censor modes */
+.cmodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:18px;}
+.cmode{background:var(--panel2);border:2px solid var(--border);padding:14px 10px;cursor:pointer;text-align:center;transition:all .2s;position:relative;overflow:hidden;}
+.cmode::before{content:'';position:absolute;inset:0;background:var(--mc,var(--accent-dim));opacity:0;transition:opacity .2s;}
+.cmode:hover::before{opacity:.4;}
+.cmode.sel{border-color:var(--mc,var(--accent));}
+.cmode.sel::before{opacity:1;}
+.mi{font-size:1.5rem;display:block;margin-bottom:5px;position:relative;z-index:1;}
+.mn{font-family:'Martian Mono',monospace;font-size:.56rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);position:relative;z-index:1;transition:color .2s;}
+.cmode.sel .mn{color:var(--text);}
+.md{font-size:.58rem;color:var(--text3);margin-top:3px;position:relative;z-index:1;}
+.cmode.sel .md{color:var(--text2);}
+
+/* Settings */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:11px;margin-bottom:14px;}
+.sfield label{display:block;font-family:'Martian Mono',monospace;font-size:.56rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.sfield select,.sfield input[type=range]{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Martian Mono',monospace;font-size:.72rem;padding:8px 10px;outline:none;cursor:pointer;transition:border-color .2s;-webkit-appearance:none;}
+.sfield select:focus{border-color:var(--accent);}
+.sfield input[type=range]{padding:3px 0;accent-color:var(--accent);}
+.rval{font-size:.62rem;color:var(--accent);margin-top:4px;font-family:'Martian Mono',monospace;}
+textarea{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Martian Mono',monospace;font-size:.72rem;padding:9px 12px;resize:vertical;min-height:68px;outline:none;transition:border-color .2s;line-height:1.6;}
+textarea:focus{border-color:var(--accent);}
+
+/* Alerts */
+.alert{display:none;padding:10px 13px;font-size:.7rem;line-height:1.6;margin-bottom:13px;}
+.alert.visible{display:block;}
+.alert-err{background:var(--red-dim);border:1px solid rgba(255,68,68,.3);color:var(--red);}
+.alert-warn{background:var(--amber-dim);border:1px solid rgba(255,170,0,.3);color:var(--amber);}
+
+/* Go button */
+.go-btn{width:100%;background:linear-gradient(90deg,#00ff88,#00ccff);color:#000;border:none;font-family:'Martian Mono',monospace;font-weight:700;font-size:.95rem;letter-spacing:4px;text-transform:uppercase;padding:17px;cursor:pointer;position:relative;overflow:hidden;transition:opacity .2s,transform .1s;margin-bottom:16px;}
+.go-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .5s;}
+.go-btn:hover::after{transform:translateX(100%);}
+.go-btn:hover{opacity:.9;}
+.go-btn:active{transform:scale(.99);}
+.go-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;}
+
+/* Status */
+.spanel{display:none;background:var(--panel);border:1px solid var(--border);padding:18px 20px;margin-bottom:14px;}
+.spanel.visible{display:block;}
+.sline{display:flex;align-items:flex-start;gap:9px;padding:4px 0;font-size:.72rem;color:var(--text3);transition:color .25s;}
+.sline.active{color:var(--text);}
+.sline.done{color:var(--accent);}
+.sline.err{color:var(--red);}
+.sdot{width:6px;height:6px;border-radius:50%;background:currentColor;margin-top:5px;flex-shrink:0;}
+.sline.active .sdot{animation:dp .8s infinite;}
+@keyframes dp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.15;transform:scale(.5)}}
+.prog-track{background:var(--panel2);border:1px solid var(--border);height:3px;margin-top:13px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue),var(--purple));background-size:200% 100%;animation:sl 1.5s linear infinite;width:0%;transition:width .4s;}
+@keyframes sl{0%{background-position:100%}100%{background-position:-100%}}
+.bprog{margin-top:12px;}
+.bprow{display:flex;align-items:center;gap:9px;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem;}
+.bprow:last-child{border-bottom:none;}
+.bpname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2);}
+.bpst{font-family:'Martian Mono',monospace;font-size:.58rem;}
+.bpst.pend{color:var(--text3);}
+.bpst.work{color:var(--amber);}
+.bpst.ok{color:var(--accent);}
+.bpst.fail{color:var(--red);}
+
+/* Results */
+.rpanel{display:none;background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--accent);padding:20px;margin-bottom:14px;}
+.rpanel.visible{display:block;}
+.rtitle{font-family:'Martian Mono',monospace;font-size:.75rem;letter-spacing:2px;color:var(--accent);margin-bottom:16px;}
+.stats-row{display:flex;gap:0;border:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;}
+.stat{flex:1;min-width:70px;padding:12px 8px;text-align:center;border-right:1px solid var(--border);}
+.stat:last-child{border-right:none;}
+.sv{font-family:'Martian Mono',monospace;font-size:1.5rem;color:var(--accent);line-height:1;}
+.sl2{font-size:.52rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-top:3px;}
+.cwlbl{font-family:'Martian Mono',monospace;font-size:.52rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.cwtags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px;}
+.cwtag{background:var(--red-dim);border:1px solid rgba(255,68,68,.25);color:var(--red);font-size:.63rem;padding:2px 8px;font-family:'Martian Mono',monospace;}
+.dl-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;background:var(--accent);color:#000;border:none;font-family:'Martian Mono',monospace;font-weight:700;font-size:.75rem;letter-spacing:3px;text-transform:uppercase;padding:14px 18px;cursor:pointer;text-decoration:none;transition:opacity .15s;margin-bottom:10px;}
+.dl-btn:hover{opacity:.85;}
+.txbtn{background:none;border:1px solid var(--border);color:var(--text3);font-family:'Martian Mono',monospace;font-size:.58rem;padding:5px 11px;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.txbtn:hover{border-color:var(--text2);color:var(--text2);}
+.txbody{display:none;margin-top:9px;font-size:.7rem;line-height:2;color:var(--text3);max-height:150px;overflow-y:auto;padding:9px 11px;background:var(--panel2);border:1px solid var(--border);}
+.txbody.open{display:block;}
+.bword{color:var(--red);text-decoration:line-through;background:var(--red-dim);padding:0 2px;}
+
+footer{border-top:1px solid var(--border);padding:22px 0;font-size:.58rem;color:var(--text3);text-align:center;letter-spacing:1px;font-family:'Martian Mono',monospace;line-height:2;}
+@media(max-width:500px){.cmodes{grid-template-columns:repeat(2,1fr);}.sgrid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo-row">
+    <div class="logo">BLEEPIFY</div>
+    <div class="vtag">V3</div>
+  </div>
+  <p class="tagline">AI censoring · 6 censor effects · MP3 output · Batch ZIP processing · Groq Whisper</p>
+</header>
+
+<!-- API Key -->
+<div class="slabel">Groq API Key</div>
+<div class="panel">
+  <div class="key-row">
+    <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
+    <button class="icon-btn" onclick="toggleKey()">👁</button>
+  </div>
+  <p class="key-hint">Free at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> · No credit card required</p>
+</div>
+
+<!-- Upload mode -->
+<div class="slabel">Upload Mode</div>
+<div class="mode-tabs">
+  <div class="mode-tab active" id="tab-single" onclick="setMode('single')">🎵 &nbsp;Single Track</div>
+  <div class="mode-tab" id="tab-batch" onclick="setMode('batch')">📦 &nbsp;Batch ZIP &nbsp;(max 15 songs)</div>
+</div>
+
+<!-- Single -->
+<div id="sec-single">
+  <div class="uzone" id="uzone">
+    <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.webm,.wma,.aiff"/>
+    <span class="u-icon">🎵</span>
+    <div class="u-title">Drop audio file or tap to browse</div>
+    <div class="u-sub">All formats accepted</div>
+    <div class="u-fmts">MP3 · WAV · M4A · AAC · OGG · FLAC · AIFF · OPUS · WMA · WEBM</div>
+  </div>
+  <div class="fchip" id="fchip">
+    <span style="font-size:1.4rem;flex-shrink:0">🎶</span>
+    <div class="fc-info"><div class="fc-name" id="fcName">—</div><div class="fc-meta" id="fcMeta">—</div></div>
+    <button class="rm-btn" onclick="clearSingle()">✕ Remove</button>
+  </div>
+  <div class="wwave" id="wwave"><canvas id="wcanvas"></canvas></div>
+</div>
+
+<!-- Batch -->
+<div id="sec-batch" style="display:none">
+  <div class="uzone" id="bzone">
+    <input type="file" id="batchIn" accept=".zip"/>
+    <span class="u-icon">📦</span>
+    <div class="u-title">Drop a ZIP file (up to 15 audio tracks)</div>
+    <div class="u-sub">ZIP → censor all tracks → download as ZIP</div>
+    <div class="u-fmts">Supports MP3 · WAV · M4A · OGG · FLAC · AAC inside the ZIP</div>
+  </div>
+  <div class="blist" id="blist"></div>
+</div>
+
+<!-- Censor effect -->
+<div class="slabel" style="margin-top:6px">Censor Effect</div>
+<div class="cmodes">
+  <div class="cmode sel" data-mode="silence" style="--mc:var(--accent)" onclick="selMode(this)">
+    <span class="mi">🔇</span><div class="mn">Silence</div><div class="md">Clean cut</div>
+  </div>
+  <div class="cmode" data-mode="reverse" style="--mc:var(--blue)" onclick="selMode(this)">
+    <span class="mi">🔄</span><div class="mn">Reverse</div><div class="md">Flipped audio</div>
+  </div>
+  <div class="cmode" data-mode="echo" style="--mc:var(--purple)" onclick="selMode(this)">
+    <span class="mi">🌀</span><div class="mn">Echo Smear</div><div class="md">Layered echoes</div>
+  </div>
+  <div class="cmode" data-mode="pitchdown" style="--mc:var(--red)" onclick="selMode(this)">
+    <span class="mi">📉</span><div class="mn">Pitch Down</div><div class="md">Slowed &amp; low</div>
+  </div>
+  <div class="cmode" data-mode="robot" style="--mc:var(--amber)" onclick="selMode(this)">
+    <span class="mi">🤖</span><div class="mn">Robotize</div><div class="md">Buzzy distort</div>
+  </div>
+  <div class="cmode" data-mode="scratch" style="--mc:var(--pink)" onclick="selMode(this)">
+    <span class="mi">🎚️</span><div class="mn">DJ Scratch</div><div class="md">Back-and-forth</div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="slabel">Settings</div>
+<div class="sgrid">
+  <div class="sfield">
+    <label>Whisper Model</label>
+    <select id="groqModel">
+      <option value="whisper-large-v3-turbo" selected>Large v3 Turbo (fast)</option>
+      <option value="whisper-large-v3">Large v3 (most accurate)</option>
+      <option value="distil-whisper-large-v3-en">Distil English (fastest)</option>
+    </select>
+  </div>
+  <div class="sfield">
+    <label>Filter Strength</label>
+    <select id="filterStr">
+      <option value="standard">Standard</option>
+      <option value="strict" selected>Strict (recommended)</option>
+      <option value="custom">Custom list only</option>
+    </select>
+  </div>
+  <div class="sfield">
+    <label>Output Format</label>
+    <select id="outFmt">
+      <option value="mp3" selected>MP3 (universal)</option>
+      <option value="wav">WAV (lossless)</option>
+      <option value="ogg">OGG (smaller)</option>
+      <option value="webm">WEBM</option>
+    </select>
+  </div>
+  <div class="sfield">
+    <label>Padding — <span id="padVal">150</span>ms</label>
+    <input type="range" id="padding" min="0" max="600" step="50" value="150"/>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="ptitle">Extra Words to Mute (optional — one per line)</div>
+  <textarea id="customWords" placeholder="custom word&#10;another phrase&#10;..."></textarea>
+</div>
+
+<div class="alert alert-err"  id="errBox"></div>
+<div class="alert alert-warn" id="warnBox"></div>
+
+<button class="go-btn" id="goBtn" disabled>⚡ CENSOR TRACK</button>
+
+<!-- Status -->
+<div class="spanel" id="spanel">
+  <div class="sline" id="st1"><div class="sdot"></div><span id="st1t">Sending audio to Groq Whisper...</span></div>
+  <div class="sline" id="st2"><div class="sdot"></div><span>Transcribing with word-level timestamps...</span></div>
+  <div class="sline" id="st3"><div class="sdot"></div><span>Detecting explicit words in transcript...</span></div>
+  <div class="sline" id="st4"><div class="sdot"></div><span id="st4t">Applying censor effect to audio...</span></div>
+  <div class="sline" id="st5"><div class="sdot"></div><span id="st5t">Encoding output file...</span></div>
+  <div class="bprog" id="bprog" style="display:none"></div>
+  <div class="prog-track"><div class="prog-fill" id="pfill"></div></div>
+</div>
+
+<!-- Results -->
+<div class="rpanel" id="rpanel">
+  <div class="rtitle" id="rtitle">// CENSORED</div>
+  <div class="stats-row">
+    <div class="stat"><div class="sv" id="rW">0</div><div class="sl2">Muted</div></div>
+    <div class="stat"><div class="sv" id="rS">0s</div><div class="sl2">Silenced</div></div>
+    <div class="stat"><div class="sv" id="rK">—</div><div class="sl2">Retained</div></div>
+    <div class="stat"><div class="sv" id="rM">—</div><div class="sl2">Effect</div></div>
+  </div>
+  <div id="cwArea"></div>
+  <a class="dl-btn" id="dlBtn" href="#" download>⬇ DOWNLOAD CENSORED FILE</a>
+  <button class="txbtn" onclick="toggleTx()">Show Transcript</button>
+  <div class="txbody" id="txbody"></div>
+</div>
+
+<footer>BLEEPIFY V3 · GROQ WHISPER · ALL AUDIO EFFECTS PROCESSED LOCALLY · YOUR KEY STAYS IN YOUR BROWSER</footer>
+</div>
+
+<script>
+// ── Profanity ─────────────────────────────────────────────────────
+const STD=new Set(["fuck","fucking","fucked","fucker","fucks","fuckin","motherfucker","motherfucking","mf","shit","shitting","shits","shitty","bullshit","horseshit","dipshit","shithead","bitch","bitches","bitching","cunt","cunts","pussy","pussies","cock","cocks","dick","dicks","asshole","assholes","jackass","dumbass","nigger","niggers","nigga","niggas","chink","spic","kike","faggot","faggots","fag","fags","whore","whores","slut","slutty","skank","twat","twats"]);
+const STRICT=new Set([...STD,"damn","dammit","goddamn","ass","asses","bastard","bastards","piss","pissed","crap","crappy","boner","horny","tits","boobs","boob","penis","vagina","anal","anus","retard","retarded","prick","pricks","shithole"]);
+function getBad(s){return s==='standard'?new Set(STD):s==='strict'?new Set(STRICT):new Set();}
+
+// ── State ─────────────────────────────────────────────────────────
+let audioFile=null,audioCtx=null,curMode='single',censorEff='silence',bFiles=[];
+const $=id=>document.getElementById(id);
+
+// ── Key toggle ────────────────────────────────────────────────────
+function toggleKey(){const k=$('apiKey');k.type=k.type==='password'?'text':'password';}
+
+// ── Padding ───────────────────────────────────────────────────────
+$('padding').oninput=()=>$('padVal').textContent=$('padding').value;
+
+// ── Upload mode ───────────────────────────────────────────────────
+function setMode(m){
+  curMode=m;
+  $('tab-single').classList.toggle('active',m==='single');
+  $('tab-batch').classList.toggle('active',m==='batch');
+  $('sec-single').style.display=m==='single'?'':'none';
+  $('sec-batch').style.display=m==='batch'?'':'none';
+  $('goBtn').textContent=m==='batch'?'⚡ CENSOR ALL TRACKS':'⚡ CENSOR TRACK';
+  updateBtn();
+}
+
+// ── Censor effect ─────────────────────────────────────────────────
+function selMode(el){
+  document.querySelectorAll('.cmode').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  censorEff=el.dataset.mode;
+}
+
+// ── Single upload ─────────────────────────────────────────────────
+const uz=$('uzone');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag');});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag');if(e.dataTransfer.files[0])doSingle(e.dataTransfer.files[0]);});
+$('fileIn').addEventListener('change',()=>{if($('fileIn').files[0])doSingle($('fileIn').files[0]);});
+
+function fmtSz(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
+
+async function doSingle(f){
+  audioFile=f;
+  $('fcName').textContent=f.name;
+  $('fcMeta').textContent=fmtSz(f.size)+' · '+(f.type||'audio');
+  $('fchip').classList.add('visible');
+  uz.style.display='none';
+  hideA(); $('rpanel').classList.remove('visible'); $('spanel').classList.remove('visible');
+  updateBtn();
+  try{
+    const ab=await f.arrayBuffer();
+    audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+    const buf=await audioCtx.decodeAudioData(ab.slice(0));
+    drawWave(buf); $('wwave').classList.add('visible');
+    $('fcMeta').textContent+=` · ${buf.duration.toFixed(1)}s`;
+  }catch(e){}
+}
+function clearSingle(){
+  audioFile=null;
+  $('fchip').classList.remove('visible'); $('wwave').classList.remove('visible');
+  uz.style.display=''; $('fileIn').value='';
+  hideA(); $('rpanel').classList.remove('visible'); $('spanel').classList.remove('visible');
+  updateBtn();
+}
+
+// ── Batch upload ──────────────────────────────────────────────────
+const bz=$('bzone');
+bz.addEventListener('dragover',e=>{e.preventDefault();bz.classList.add('drag');});
+bz.addEventListener('dragleave',()=>bz.classList.remove('drag'));
+bz.addEventListener('drop',e=>{e.preventDefault();bz.classList.remove('drag');if(e.dataTransfer.files[0])doBatchZip(e.dataTransfer.files[0]);});
+$('batchIn').addEventListener('change',()=>{if($('batchIn').files[0])doBatchZip($('batchIn').files[0]);});
+
+const AE=/\.(mp3|wav|m4a|aac|ogg|flac|opus|webm|wma|aiff)$/i;
+const MIME={mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',aac:'audio/aac',ogg:'audio/ogg',flac:'audio/flac',opus:'audio/opus',webm:'audio/webm',wma:'audio/x-ms-wma',aiff:'audio/aiff'};
+
+async function doBatchZip(zf){
+  hideA(); $('blist').innerHTML=''; $('blist').classList.remove('visible'); bFiles=[];
+  try{
+    const zip=await JSZip.loadAsync(zf);
+    const entries=[];
+    zip.forEach((path,entry)=>{if(!entry.dir&&AE.test(path))entries.push({path,entry});});
+    if(!entries.length){showErr('No audio files found in ZIP.');return;}
+    if(entries.length>15) showWarn(`ZIP has ${entries.length} audio files — only first 15 will be processed.`);
+    for(const {path,entry} of entries.slice(0,15)){
+      const blob=await entry.async('blob');
+      const name=path.split('/').pop();
+      const ext=(name.match(/\.([^.]+)$/)||['','mp3'])[1].toLowerCase();
+      bFiles.push({name,file:new File([blob],name,{type:MIME[ext]||'audio/mpeg'})});
+    }
+    $('blist').innerHTML=bFiles.map((f,i)=>`<div class="bitem"><span class="bnum">${String(i+1).padStart(2,'0')}</span><span class="bname">${esc(f.name)}</span><span class="bsize">${fmtSz(f.file.size)}</span></div>`).join('');
+    $('blist').classList.add('visible');
+    updateBtn();
+  }catch(e){showErr('Could not read ZIP: '+e.message);}
+}
+
+// ── Waveform ──────────────────────────────────────────────────────
+function drawWave(buf){
+  const d=buf.getChannelData(0),c=$('wcanvas');
+  c.width=(c.offsetWidth||840)*devicePixelRatio; c.height=50*devicePixelRatio;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+  const step=Math.ceil(d.length/c.width);
+  for(let i=0;i<c.width;i++){
+    let mx=0; for(let j=0;j<step;j++){const v=Math.abs(d[i*step+j]||0);if(v>mx)mx=v;}
+    const amp=mx*(c.height/2)*.85;
+    ctx.strokeStyle=`rgba(0,255,136,${.12+mx*.7})`; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(i,c.height/2-amp);ctx.lineTo(i,c.height/2+amp);ctx.stroke();
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function showErr(m){$('errBox').textContent=m;$('errBox').classList.add('visible');}
+function showWarn(m){$('warnBox').textContent=m;$('warnBox').classList.add('visible');}
+function hideA(){$('errBox').classList.remove('visible');$('warnBox').classList.remove('visible');}
+function updateBtn(){
+  const ok=(curMode==='single'&&!!audioFile)||(curMode==='batch'&&bFiles.length>0);
+  $('goBtn').disabled=!($('apiKey').value.trim()&&ok);
+}
+$('apiKey').oninput=updateBtn;
+
+function setSt(n,state='active'){
+  for(let i=1;i<=5;i++){const e=$('st'+i);e.className='sline';if(i<n)e.classList.add('done');else if(i===n)e.classList.add(state==='err'?'err':state);}
+  $('pfill').style.width=(n/5*100)+'%';
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Go ────────────────────────────────────────────────────────────
+$('goBtn').onclick=async()=>{
+  const key=$('apiKey').value.trim(); if(!key)return;
+  hideA(); $('goBtn').disabled=true;
+  $('spanel').classList.add('visible'); $('rpanel').classList.remove('visible');
+  $('pfill').style.width='2%';
+  try{
+    if(curMode==='single') await runSingle(audioFile,key);
+    else await runBatch(key);
+  }catch(e){showErr('Error: '+e.message);console.error(e);$('spanel').classList.remove('visible');}
+  $('goBtn').disabled=false; updateBtn();
+};
+
+// ══════════════════════════════════════════════════════════════════
+// Single
+// ══════════════════════════════════════════════════════════════════
+async function runSingle(file,key){
+  $('bprog').style.display='none';
+  const {outBuf,cWords,txParts,totalDur,merged}=await censorFile(file,key,censorEff,n=>setSt(n));
+  const fmt=$('outFmt').value;
+  const blob=await encOut(outBuf,fmt);
+  setSt(5,'done'); $('pfill').style.width='100%';
+
+  const totM=merged.reduce((s,r)=>s+(r.end-r.start),0);
+  const ret=totalDur>0?Math.round((1-totM/totalDur)*100):100;
+  $('rW').textContent=cWords.length;
+  $('rS').textContent=totM.toFixed(1)+'s';
+  $('rK').textContent=ret+'%';
+  $('rM').textContent=censorEff.slice(0,6).toUpperCase();
+
+  const uniq=[...new Set(cWords)];
+  $('cwArea').innerHTML=uniq.length
+    ?`<div class="cwlbl">Censored words</div><div class="cwtags">${uniq.map(w=>`<span class="cwtag">${esc(w)}</span>`).join('')}</div>`
+    :`<div class="cwlbl" style="color:var(--accent);margin-bottom:13px">✓ No profanity detected — track is clean!</div>`;
+  $('txbody').innerHTML=txParts.map(p=>p.bad?`<span class="bword">${esc(p.text)}</span>`:esc(p.text)).join(' ');
+
+  const ext=fmtExt(fmt);
+  const base=file.name.replace(/\.[^.]+$/,'');
+  setDl(blob,`${base}_censored.${ext}`);
+  $('rtitle').textContent=`// CENSORED · ${censorEff.toUpperCase()}`;
+  $('rpanel').classList.add('visible');
+  $('rpanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Batch
+// ══════════════════════════════════════════════════════════════════
+async function runBatch(key){
+  $('bprog').style.display='block';
+  $('bprog').innerHTML=bFiles.map((f,i)=>`<div class="bprow"><span class="bpname">${esc(f.name)}</span><span class="bpst pend" id="bps${i}">WAITING</span></div>`).join('');
+  const fmt=$('outFmt').value; const ext=fmtExt(fmt);
+  const zip=new JSZip(); let totW=0,totM=0;
+
+  for(let i=0;i<bFiles.length;i++){
+    const {name,file}=bFiles[i];
+    const el=$('bps'+i); if(el){el.textContent='WORKING';el.className='bpst work';}
+    $('st1t').textContent=`[${i+1}/${bFiles.length}] Transcribing: ${name}`;
+    $('pfill').style.width=((i/bFiles.length)*88+2)+'%';
+    setSt(1);
+    try{
+      const {outBuf,cWords,merged}=await censorFile(file,key,censorEff,()=>{});
+      const blob=await encOut(outBuf,fmt);
+      const base=name.replace(/\.[^.]+$/,'');
+      zip.file(`censored/${base}_censored.${ext}`,blob);
+      totW+=cWords.length;
+      totM+=merged.reduce((s,r)=>s+(r.end-r.start),0);
+      if(el){el.textContent='✓ DONE';el.className='bpst ok';}
+    }catch(e){
+      if(el){el.textContent='✗ ERROR';el.className='bpst fail';}
+      console.warn('Failed '+name+':',e.message);
+    }
+  }
+
+  $('pfill').style.width='92%'; setSt(5); $('st5t').textContent='Creating ZIP archive...';
+  const zblob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+  $('pfill').style.width='100%'; setSt(5,'done');
+
+  $('rW').textContent=totW; $('rS').textContent=totM.toFixed(1)+'s'; $('rK').textContent='—'; $('rM').textContent=censorEff.slice(0,6).toUpperCase();
+  $('cwArea').innerHTML=`<div class="cwlbl" style="color:var(--accent);margin-bottom:13px">✓ ${bFiles.length} tracks processed · ${totW} words censored total</div>`;
+  $('txbody').innerHTML='Transcripts not available in batch mode';
+  setDl(zblob,`censored_batch_${Date.now()}.zip`);
+  $('dlBtn').textContent=`⬇ DOWNLOAD ZIP (${bFiles.length} TRACKS · ${ext.toUpperCase()})`;
+  $('rtitle').textContent=`// BATCH COMPLETE · ${bFiles.length} TRACKS`;
+  $('rpanel').classList.add('visible');
+  $('rpanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function setDl(blob,name){const url=URL.createObjectURL(blob);$('dlBtn').href=url;$('dlBtn').download=name;}
+function toggleTx(){const b=$('txbody');b.classList.toggle('open');document.querySelector('.txbtn').textContent=b.classList.contains('open')?'Hide Transcript':'Show Transcript';}
+function fmtExt(f){return f==='mp3'?'mp3':f==='wav'?'wav':f==='ogg'?'ogg':'webm';}
+
+// ══════════════════════════════════════════════════════════════════
+// Core: censor one file → returns AudioBuffer
+// ══════════════════════════════════════════════════════════════════
+async function censorFile(file,key,eff,onSt){
+  onSt(1);
+  const fd=new FormData();
+  fd.append('file',file,file.name);
+  fd.append('model',$('groqModel').value);
+  fd.append('response_format','verbose_json');
+  fd.append('timestamp_granularities[]','word');
+  fd.append('language','en');
+  onSt(2);
+  const r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+key},body:fd});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error('Groq: '+(e?.error?.message||r.status));}
+  const tx=await r.json();
+  onSt(3);
+
+  const bad=getBad($('filterStr').value);
+  const cr=$('customWords').value.trim();
+  if(cr) cr.split('\n').forEach(w=>{const t=w.trim().toLowerCase();if(t)bad.add(t);});
+
+  const words=tx.words||[]; const pad=parseInt($('padding').value)/1000;
+  const totalDur=tx.duration||0;
+  const mRanges=[],cWords=[],txParts=[];
+
+  for(const w of words){
+    const clean=(w.word||'').replace(/[^a-z']/gi,'').toLowerCase();
+    const isBad=bad.has(clean);
+    txParts.push({text:w.word,bad:isBad});
+    if(isBad&&w.start!=null&&w.end!=null){
+      mRanges.push({start:Math.max(0,w.start-pad),end:w.end+pad,word:w.word.trim()});
+      cWords.push(w.word.trim());
+    }
+  }
+  mRanges.sort((a,b)=>a.start-b.start);
+  const merged=[];
+  for(const r2 of mRanges){
+    if(merged.length&&r2.start<=merged[merged.length-1].end) merged[merged.length-1].end=Math.max(merged[merged.length-1].end,r2.end);
+    else merged.push({...r2});
+  }
+
+  onSt(4);
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') await audioCtx.resume();
+  const rawAB=await file.arrayBuffer();
+  const srcBuf=await audioCtx.decodeAudioData(rawAB);
+  const sr=srcBuf.sampleRate,nCh=srcBuf.numberOfChannels,nF=srcBuf.length;
+  const outBuf=audioCtx.createBuffer(nCh,nF,sr);
+  for(let c=0;c<nCh;c++){
+    const src=srcBuf.getChannelData(c),dst=outBuf.getChannelData(c);
+    dst.set(src);
+    for(const rg of merged) applyFx(dst,src,Math.floor(rg.start*sr),Math.min(Math.ceil(rg.end*sr),nF),sr,eff);
+  }
+  onSt(5);
+  return{outBuf,cWords,txParts,totalDur:srcBuf.duration,merged};
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Censor effects
+// ══════════════════════════════════════════════════════════════════
+function applyFx(dst,src,s0,s1,sr,eff){
+  const len=s1-s0; if(len<=0) return;
+  const fade=Math.min(Math.floor(.006*sr),Math.floor(len/4));
+
+  if(eff==='silence'){
+    for(let i=s0;i<s1;i++){
+      let g=0;
+      if(i<s0+fade) g=1-(i-s0)/fade;
+      else if(i>s1-fade) g=(i-(s1-fade))/fade;
+      dst[i]*=g;
+    }
+  }
+  else if(eff==='reverse'){
+    const reg=new Float32Array(len);
+    for(let i=0;i<len;i++) reg[i]=src[s0+i];
+    for(let i=0;i<len;i++){
+      let g=1;
+      if(i<fade) g=i/fade;
+      else if(i>len-fade) g=(len-i)/fade;
+      dst[s0+i]=reg[len-1-i]*g;
+    }
+  }
+  else if(eff==='echo'){
+    const delays=[Math.floor(.04*sr),Math.floor(.09*sr),Math.floor(.16*sr)];
+    const gains=[.65,.4,.22];
+    const mix=new Float32Array(len);
+    for(let i=0;i<len;i++){
+      let v=src[s0+i]*.25;
+      for(let d=0;d<delays.length;d++){const p=s0+i-delays[d];if(p>=0)v+=src[p]*gains[d];}
+      mix[i]=v;
+    }
+    for(let i=0;i<len;i++){let g=1;if(i<fade)g=i/fade;else if(i>len-fade)g=(len-i)/fade;dst[s0+i]=mix[i]*g;}
+  }
+  else if(eff==='pitchdown'){
+    const factor=1.75;
+    for(let i=0;i<len;i++){
+      const si=Math.floor(i/factor);
+      let g=1;if(i<fade)g=i/fade;else if(i>len-fade)g=(len-i)/fade;
+      dst[s0+i]=si<len?src[s0+si]*g*.85:0;
+    }
+  }
+  else if(eff==='robot'){
+    const freq=85;
+    for(let i=0;i<len;i++){
+      const carrier=Math.sin(2*Math.PI*freq*(i/sr));
+      let g=1;if(i<fade)g=i/fade;else if(i>len-fade)g=(len-i)/fade;
+      let v=src[s0+i]*carrier*2.2;
+      v=v/(1+Math.abs(v)); // soft clip
+      dst[s0+i]=v*g;
+    }
+  }
+  else if(eff==='scratch'){
+    const sf=14;
+    for(let i=0;i<len;i++){
+      const ph=Math.sin(2*Math.PI*sf*(i/sr));
+      const off=Math.floor(ph*(len*.2));
+      const rp=Math.max(s0,Math.min(s1-1,s0+i+off));
+      let g=1;if(i<fade)g=i/fade;else if(i>len-fade)g=(len-i)/fade;
+      dst[s0+i]=src[rp]*g*.82;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Encoding
+// ══════════════════════════════════════════════════════════════════
+async function encOut(buf,fmt){
+  if(fmt==='mp3') return encMp3(buf);
+  if(fmt==='wav') return encWAV(buf);
+  const mime=fmt==='ogg'?'audio/ogg; codecs=opus':'audio/webm; codecs=opus';
+  try{return await encMR(buf,mime);}catch(e){return encWAV(buf);}
+}
+
+function encMp3(buf){
+  return new Promise((res,rej)=>{
+    try{
+      const nCh=Math.min(buf.numberOfChannels,2),sr=buf.sampleRate;
+      const enc=new lamejs.Mp3Encoder(nCh,sr,128);
+      const bs=1152,nF=buf.length;
+      const c0=f2i16(buf.getChannelData(0));
+      const c1=nCh>1?f2i16(buf.getChannelData(1)):c0;
+      const chunks=[];
+      for(let i=0;i<nF;i+=bs){
+        const l=c0.subarray(i,i+bs),r=c1.subarray(i,i+bs);
+        const e=nCh===2?enc.encodeBuffer(l,r):enc.encodeBuffer(l);
+        if(e.length>0) chunks.push(new Int8Array(e));
+      }
+      const fl=enc.flush(); if(fl.length>0) chunks.push(new Int8Array(fl));
+      res(new Blob(chunks,{type:'audio/mpeg'}));
+    }catch(e){rej(e);}
+  });
+}
+function f2i16(f32){
+  const i16=new Int16Array(f32.length);
+  for(let i=0;i<f32.length;i++){const s=Math.max(-1,Math.min(1,f32[i]));i16[i]=s<0?s*0x8000:s*0x7FFF;}
+  return i16;
+}
+
+function encWAV(buf){
+  const nCh=buf.numberOfChannels,sr=buf.sampleRate,nF=buf.length;
+  const ds=nF*nCh*2,ab=new ArrayBuffer(44+ds),v=new DataView(ab);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+ds,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nCh,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nCh*2,true);
+  v.setUint16(32,nCh*2,true);v.setUint16(34,16,true);
+  ws(36,'data');v.setUint32(40,ds,true);
+  let o=44;
+  for(let i=0;i<nF;i++) for(let c=0;c<nCh;c++){
+    const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));
+    v.setInt16(o,s<0?s*0x8000:s*0x7FFF,true);o+=2;
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+function encMR(buf,mimeType){
+  return new Promise((res,rej)=>{
+    const ctx2=new(window.AudioContext||window.webkitAudioContext)({sampleRate:buf.sampleRate});
+    const dest=ctx2.createMediaStreamDestination();
+    const src=ctx2.createBufferSource(); src.buffer=buf; src.connect(dest);
+    const chunks=[]; const rec=new MediaRecorder(dest.stream,{mimeType});
+    rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+    rec.onstop=()=>{ctx2.close();res(new Blob(chunks,{type:mimeType}));};
+    rec.onerror=e=>{ctx2.close();rej(e);};
+    rec.start(); src.start();
+    src.onended=()=>setTimeout(()=>{try{rec.stop();}catch(e){}},200);
+    setTimeout(()=>{try{rec.stop();}catch(e){}},( buf.duration+3)*1000);
+  });
+}
+</script>
+</body>
+</html>
